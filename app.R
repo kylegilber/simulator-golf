@@ -1,4 +1,30 @@
 library(shiny)
+library(dplyr)
+library(data.table)
+
+round_data <- fread(file = "tournament_scorecard_data.csv")
+shot_data <- fread(file = "shot_data.csv")
+
+par3_rounds <- round_data %>% 
+  filter(Tee == "Par3") %>% 
+  slice_head(n = 20) %>% 
+  arrange(Differential)
+
+par3_rounds_used <- par3_rounds %>% 
+  slice_head(n = 8) %>% 
+  arrange(desc(`Registration Data`))
+
+par3_handicap <- round(mean(par3_rounds_used$Differential), 1)
+
+combo_rounds <- round_data %>% 
+  filter(Tee != "Par3") %>% 
+  arrange(Differential)
+
+combo_rounds_used <- combo_rounds %>% 
+  slice_head(n = nrow(combo_rounds) %/% 2.3) %>% 
+  arrange(desc(`Registration Data`))
+
+combo_handicap <- round(mean(combo_rounds_used$Differential), 1)
 
 colors <- list(
   primary = "#000000",
@@ -71,15 +97,17 @@ ui <- fluidPage(
         }
         
         .card-header {
-          font-size: 4.2rem;
+          font-size: 5rem;
         }
         
         .card-text {
-          font-size: 2.7rem;
+          font-size: 2.9rem;
+          margin: 0;
         }
         
         .card-num {
-        font-size: 3.3rem;
+        font-size: 3.1rem;
+        margin: 0;
         }
         
         .card-btn {
@@ -93,14 +121,14 @@ ui <- fluidPage(
           margin-bottom: 1rem;
         }
         
-        .card-btn:hover {
+        .card-btn:hover,
+        .card-btn:focus {
           background-color: var(--tertiary);
           transition: background-color 0.2s ease;
           border: inherit;
           color: inherit;
         }
         
-        .card-btn:focus,
         .card-btn:active {
           background-color: var(--accent) !important;
           border-color: var(--accent) !important;
@@ -115,7 +143,8 @@ ui <- fluidPage(
         }
         
         .text-box {
-          display: inline-block;
+          display: flex;
+          min-width: 6rem;
           padding: .5rem 1rem;
           border-radius: 8px;
           background-color: var(--tertiary);
@@ -142,7 +171,7 @@ ui <- fluidPage(
               p("COMBO", class = "yuyu-short-regular card-text"),
               div(
                 class = "text-box",
-                p("2.1", class = "yuyu-short-regular card-num")
+                p(combo_handicap, class = "yuyu-short-regular card-num")
               )),
             class = "card-btn"
           ),
@@ -154,7 +183,7 @@ ui <- fluidPage(
               p("PAR 3", class = "yuyu-short-regular card-text"),
               div(
                 class = "text-box",
-                p("2.1", class = "yuyu-short-regular card-num")
+                p(par3_handicap, class = "yuyu-short-regular card-num")
               )),
             class = "card-btn"
           )
