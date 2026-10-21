@@ -48,27 +48,41 @@ ui <- fluidPage(
           letter-spacing: 0.1rem !important;
         }
         
-        .panel {
+        .card {
+          width: 100%;
+          transition: all 0.3s ease;
           background-color: var(--secondary);
           border: 1px solid var(--tertiary);
           border-radius: 10px;
           padding: 1rem;
           color: white;
+          margin-bottom: 1rem;
         }
         
-        .panel-header {
+        .card.expanded {
+          width: 90vw;
+          min-height: 80vh;
+          position: fixed;
+          top: 5vh;
+          left: 5vw;
+          z-index: 1000;
+          background-color: car(--secondary);
+          overflow-y: auto;
+        }
+        
+        .card-header {
           font-size: 4.2rem;
         }
         
-        .panel-text {
+        .card-text {
           font-size: 2.7rem;
         }
         
-        .panel-num {
+        .card-num {
         font-size: 3.3rem;
         }
         
-        .panel-btn {
+        .card-btn {
           width: 100%;
           background-color: var(--highlight);
           border: none;
@@ -79,20 +93,21 @@ ui <- fluidPage(
           margin-bottom: 1rem;
         }
         
-        .panel-btn:hover {
+        .card-btn:hover {
           background-color: var(--tertiary);
           transition: background-color 0.2s ease;
           border: inherit;
           color: inherit;
         }
         
-        .panel-btn:active {
+        .card-btn:focus,
+        .card-btn:active {
           background-color: var(--accent) !important;
           border-color: var(--accent) !important;
           outline: none !important;
         }
         
-        .panel-row {
+        .card-row {
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -111,48 +126,89 @@ ui <- fluidPage(
         }
     "))
   ),
+  
   fluidPage(
-    
-    # Handicap
-    column(
-      width = 3,
-      div(
-        class = "panel",
-        h2("Handicap", class = "yuyu-short-regular panel-header"),
-        
-        # Combo
-        actionButton(
-          "cmb_hndcp_btn",
-          div(
-            class = "panel-row",
-            p("COMBO", class = "yuyu-short-regular panel-text"),
+    fluidRow(
+      column(
+        width = 3,
+        div(
+          class = "card",
+          h2("Handicap", class = "yuyu-short-regular card-header"),
+          
+          actionButton(
+            "cmb_hndcp_btn",
             div(
-              class = "text-box",
-              p("2.1", class = "yuyu-short-regular panel-num")
-            )
+              class = "card-row",
+              p("COMBO", class = "yuyu-short-regular card-text"),
+              div(
+                class = "text-box",
+                p("2.1", class = "yuyu-short-regular card-num")
+              )),
+            class = "card-btn"
           ),
-          class = "panel-btn"
-        ),
-        
-        # Par 3
-        actionButton(
-          "pr3_hndcp_btn",
-          div(
-            class = "panel-row",
-            p("PAR 3", class = "yuyu-short-regular panel-text"),
+          
+          actionButton(
+            "pr3_hndcp_btn",
             div(
-              class = "text-box",
-              p("2.1", class = "yuyu-short-regular panel-num")
-            )
-          ),
-          class = "panel-btn"
+              class = "card-row",
+              p("PAR 3", class = "yuyu-short-regular card-text"),
+              div(
+                class = "text-box",
+                p("2.1", class = "yuyu-short-regular card-num")
+              )),
+            class = "card-btn"
+          )
         )
+      )
+    ),
+    
+    fluidRow(
+      column(
+        width = 12,
+        uiOutput("handicap_rounds")
       )
     )
   )
 )
 
-server <- function(input, output) {}
+server <- function(input, output) {
+  
+  selected_handicap <- reactiveVal(NULL)
+  
+  observeEvent(input$cmb_hndcp_btn, {
+    if (identical(selected_handicap(), "combo")) {
+      selected_handicap(NULL)
+    } else {
+      selected_handicap("combo")
+    }
+  })
+  
+  observeEvent(input$pr3_hndcp_btn, {
+    if (identical(selected_handicap(), "par3")) {
+      selected_handicap(NULL)
+    } else {
+      selected_handicap("par3")
+    }
+  })
+  
+  output$handicap_rounds <- renderUI({
+    req(selected_handicap())
+    
+    if (selected_handicap() == "combo") {
+      div(
+        class = "card expanded-card",
+        h2("Combo Handicap Rounds", class = "yuyu-short-regular card-header"),
+        tags$hr()
+      )
+    } else {
+      div(
+        class = "card expanded-card",
+        h2("Par 3 Handicap Rounds", class = "yuyu-short-regular card-header"),
+        tags$hr()
+      )
+    }
+  })
+}
 
 # Run the application 
 shinyApp(ui = ui, server = server)
