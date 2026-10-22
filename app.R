@@ -244,7 +244,7 @@ ui <- fluidPage(
         div(
           class = "card",
           h2("Round History", class = "yuyu-short-regular card-header"),
-          
+          uiOutput("recent_rounds")
         )
       )
     ),
@@ -298,6 +298,34 @@ server <- function(input, output) {
       )
     )
   }
+  
+  output$recent_rounds <- renderUI({
+    rounds <- round_data %>%
+      arrange(desc(Date)) %>% 
+      slice_head(n = 4) %>% 
+      select(
+        EVENT = Tournament,
+        DATE = Date,
+        ROUND = Round,
+        SCORE = `Score (Gross)`,
+        GROSS = `To Par (Gross)`,
+        NET = `To Par (Net)`
+      ) %>% 
+      mutate(
+        across(everything(), ~replace(.x, is.na(.x), "")),
+        GROSS = ifelse(
+          GROSS > 0,
+          paste0("+", GROSS),
+          as.character(GROSS)
+        ),
+        NET = ifelse(
+          NET > 0,
+          paste0("+", NET),
+          as.character(NET)
+        )
+      )
+    make_table(rounds)
+  })
   
   output$handicap_rounds <- renderUI({
     req(selected_handicap())
