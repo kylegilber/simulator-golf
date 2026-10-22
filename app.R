@@ -155,11 +155,29 @@ ui <- fluidPage(
           outline: none !important;
         }
         
+        .card-corner-btn {
+          background: transparent;
+          border: none;
+          color: white;
+          font-size: 2rem;
+          padding: 0.5rem;
+        }
+        
+        .card-corner-btn:hover {
+          background-color: var(--accent);
+        }
+        
         .card-row {
           display: flex;
           justify-content: space-between;
           align-items: center;
           width: 100%;
+        }
+        
+        .card-title-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
         }
         
         .text-box {
@@ -243,7 +261,16 @@ ui <- fluidPage(
         width = 9,
         div(
           class = "card",
-          h2("Round History", class = "yuyu-short-regular card-header"),
+          div(
+            class = "card-title-row",
+            h2("Round History", class = "yuyu-short-regular card-header"),
+            actionButton(
+              "expand_history",
+              NULL,
+              icon = icon("expand"),
+              class = "card-corner-btn"
+            )
+          ),
           uiOutput("recent_rounds")
         )
       )
@@ -259,6 +286,12 @@ ui <- fluidPage(
 )
 
 server <- function(input, output) {
+  
+  expand_history <- reactiveVal(FALSE)
+  
+  observeEvent(input$expand_history, {
+    expand_history(!expand_history())
+  })
   
   selected_handicap <- reactiveVal(NULL)
   
@@ -314,7 +347,6 @@ server <- function(input, output) {
   output$recent_rounds <- renderUI({
     rounds <- round_data %>%
       arrange(desc(Date)) %>% 
-      slice_head(n = 4) %>% 
       select(
         EVENT = Tournament,
         DATE = Date,
@@ -323,6 +355,12 @@ server <- function(input, output) {
         GROSS = `To Par (Gross)`,
         NET = `To Par (Net)`
       )
+    
+    if (!expand_history()) {
+      rounds <- rounds %>% 
+        slice_head(n = 4)
+    }
+    
     make_table(rounds)
   })
   
