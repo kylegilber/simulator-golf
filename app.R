@@ -7,26 +7,23 @@ shot_data <- fread(file = "shot_data.csv")
 
 par3_rounds <- round_data %>% 
   filter(Tee == "Par3") %>% 
-  slice_head(n = 20) %>% 
-  arrange(Differential)
+  slice_head(n = 20)
 
 par3_rounds_used <- par3_rounds %>% 
-  slice_head(n = 8) %>% 
+  slice_min(Differential, n = 8, with_ties = FALSE) %>% 
   arrange(desc(`Registration Data`))
 
 par3_handicap <- round(mean(par3_rounds_used$Differential), 1)
-
 combo_rounds <- round_data %>% 
-  filter(Tee != "Par3") %>% 
-  arrange(Differential)
+  filter(Tee != "Par3")
 
 combo_rounds_used <- combo_rounds %>% 
-  slice_head(n = nrow(combo_rounds) %/% 2.3) %>% 
+  slice_min(Differential, n = nrow(combo_rounds) %/% 2.3) %>% 
   arrange(desc(`Registration Data`))
 
 combo_handicap <- round(mean(combo_rounds_used$Differential), 1)
 
-colors <- list(
+  colors <- list(
   primary = "#000000",
   secondary = "#1B1A1A",
   tertiary = "#484745",
@@ -97,7 +94,13 @@ ui <- fluidPage(
         }
         
         .card-header {
-          font-size: 5rem;
+          font-size: 5.3rem;
+          margin: 0.6rem;
+        }
+        
+        .card-subheader {
+          font-size: 3.1rem;
+          margin: 0.6rem;
         }
         
         .card-text {
@@ -106,8 +109,13 @@ ui <- fluidPage(
         }
         
         .card-num {
-        font-size: 3.1rem;
-        margin: 0;
+          font-size: 3.1rem;
+          margin: 0;
+        }
+        
+        .table-text {
+          font-size: 2.3rem;
+          margin: 0;
         }
         
         .card-btn {
@@ -152,6 +160,36 @@ ui <- fluidPage(
           font-size: 1rem;
           align-items: center;
           justify-content: center;
+        }
+        
+        .rounds-table {
+          width: 100%;
+          border-collapse: separate;
+        }
+        
+        .rounds-table tbody tr:nth-child(even) td {
+          background-color: var(--highlight);
+        }
+        
+        .rounds-table tbody td:first-child {
+          border-radius: 8px 0 0 8px;
+        }
+        
+        .rounds-table tbody td:last-child {
+          border-radius: 0 8px 8px 0;
+        }
+        
+        .rounds-table th {
+          text-align: left;
+          padding: 10px;
+        }
+        
+        .rounds-table td {
+          padding: 10px;
+        }
+        
+        .rounds-table tbody tr:hover td {
+          background-color: var(--accent);
         }
     "))
   ),
@@ -205,37 +243,66 @@ server <- function(input, output) {
   selected_handicap <- reactiveVal(NULL)
   
   observeEvent(input$cmb_hndcp_btn, {
-    if (identical(selected_handicap(), "combo")) {
+    if (identical(selected_handicap(), "Combo")) {
       selected_handicap(NULL)
     } else {
-      selected_handicap("combo")
+      selected_handicap("Combo")
     }
   })
   
   observeEvent(input$pr3_hndcp_btn, {
-    if (identical(selected_handicap(), "par3")) {
+    if (identical(selected_handicap(), "Par 3")) {
       selected_handicap(NULL)
     } else {
-      selected_handicap("par3")
+      selected_handicap("Par 3")
     }
   })
   
   output$handicap_rounds <- renderUI({
     req(selected_handicap())
     
-    if (selected_handicap() == "combo") {
-      div(
-        class = "card expanded-card",
-        h2("Combo Handicap Rounds", class = "yuyu-short-regular card-header"),
-        tags$hr()
-      )
+    rounds <- if (selected_handicap() == "Combo") {
+      combo_rounds_used 
     } else {
-      div(
-        class = "card expanded-card",
-        h2("Par 3 Handicap Rounds", class = "yuyu-short-regular card-header"),
-        tags$hr()
-      )
+      par3_rounds_used
     }
+    
+    rounds <- rounds %>% 
+      select(
+        EVENT = Tournament,
+        DATE = `Registration Data`,
+        ROUND = Round,
+        SCORE = `To Par (Gross)`,
+        `HCP DIFF` = Differential
+      )
+    
+    div(
+      class = "card expanded-card",
+      h2("Rounds Used", class = "yuyu-short-regular card-header"),
+      h3(
+        paste(toupper(selected_handicap()), " HANDICAP"),
+        class = "yuyu-short-regular card-subheader"
+      ),
+      
+      tags$table(
+        class = "rounds-table yuyu-short-regular table-text",
+        tags$thead(
+          tags$tr(
+            lapply(names(rounds), tags$th)
+          )
+        ),
+        
+        tags$tbody(
+          lapply(seq_len(nrow(rounds)), function(i) {
+            tags$tr(
+              lapply(rounds[i, ], function(x) {
+                tags$td(toupper(as.character(x)))
+              })
+            )
+          })
+        )
+      )
+    )
   })
 }
 
