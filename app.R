@@ -1,6 +1,7 @@
 library(shiny)
 library(dplyr)
 library(data.table)
+library(stringr)
 
 round_data <- fread(file = "tournament_scorecard_data.csv")
 shot_data <- fread(file = "shot_data.csv")
@@ -16,7 +17,11 @@ round_data <- shot_data %>%
   ungroup() %>% 
   select(Date, Tournament, Round) %>% 
   left_join(round_data, by = c("Tournament", "Round")) %>% 
-  arrange(desc(`Registration Data`))
+  arrange(desc(`Registration Data`)) %>% 
+  mutate(
+    Type = str_remove(Tour, " AutoPutt.*"),
+    Tournament = str_remove(Tournament, "\\[.*")
+  )
 
 par3_rounds <- round_data %>% 
   filter(Tee == "Par3") %>% 
@@ -349,6 +354,7 @@ server <- function(input, output) {
       arrange(desc(Date)) %>% 
       select(
         EVENT = Tournament,
+        TOUR = Type,
         DATE = Date,
         ROUND = Round,
         SCORE = `Score (Gross)`,
