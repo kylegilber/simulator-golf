@@ -279,6 +279,18 @@ server <- function(input, output) {
   })
   
   make_table <- function(df) {
+    df <- df %>% 
+      mutate(
+        across(
+          where(is.numeric) & !all_of(c("ROUND", "SCORE")),
+          ~ ifelse(is.na(.), "", ifelse(. > 0, paste0("+", .), as.character(.)))
+        ),
+        across(
+          everything(),
+          ~ replace(.x, is.na(.x), "")
+        )
+      )
+    
     tags$table(
       class = "rounds-table yuyu-short-regular table-text",
       tags$thead(
@@ -310,19 +322,6 @@ server <- function(input, output) {
         SCORE = `Score (Gross)`,
         GROSS = `To Par (Gross)`,
         NET = `To Par (Net)`
-      ) %>% 
-      mutate(
-        across(everything(), ~replace(.x, is.na(.x), "")),
-        GROSS = ifelse(
-          GROSS > 0,
-          paste0("+", GROSS),
-          as.character(GROSS)
-        ),
-        NET = ifelse(
-          NET > 0,
-          paste0("+", NET),
-          as.character(NET)
-        )
       )
     make_table(rounds)
   })
@@ -341,7 +340,8 @@ server <- function(input, output) {
         EVENT = Tournament,
         DATE = Date,
         ROUND = Round,
-        SCORE = `To Par (Gross)`,
+        SCORE = `Score (Gross)`,
+        GROSS = `To Par (Gross)`,
         `HCP DIFF` = Differential
       )
     
