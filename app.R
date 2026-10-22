@@ -5,23 +5,35 @@ library(data.table)
 round_data <- fread(file = "tournament_scorecard_data.csv")
 shot_data <- fread(file = "shot_data.csv")
 
+round_data <- shot_data %>% 
+  filter(Hole == 1, `Finishing Lie` == "holeCup") %>% 
+  group_by(Tournament) %>% 
+  arrange(Timestamp) %>% 
+  mutate(
+    Round = row_number(),
+    Date = format(as.POSIXct(Timestamp), "%m/%d/%Y")
+  ) %>% 
+  ungroup() %>% 
+  select(Date, Tournament, Round) %>% 
+  left_join(round_data, by = c("Tournament", "Round")) %>% 
+  arrange(desc(`Registration Data`))
+
 par3_rounds <- round_data %>% 
   filter(Tee == "Par3") %>% 
-  slice_head(n = 20)
-
-par3_rounds_used <- par3_rounds %>% 
+  slice_head(n = 20) %>% 
   slice_min(Differential, n = 8, with_ties = FALSE) %>% 
   arrange(desc(`Registration Data`))
 
-par3_handicap <- round(mean(par3_rounds_used$Differential), 1)
+par3_handicap <- round(mean(par3_rounds$Differential), 1)
+
 combo_rounds <- round_data %>% 
   filter(Tee != "Par3")
 
-combo_rounds_used <- combo_rounds %>% 
+combo_rounds <- combo_rounds %>% 
   slice_min(Differential, n = nrow(combo_rounds) %/% 2.3) %>% 
   arrange(desc(`Registration Data`))
 
-combo_handicap <- round(mean(combo_rounds_used$Differential), 1)
+combo_handicap <- round(mean(combo_rounds$Differential), 1)
 
   colors <- list(
   primary = "#000000",
@@ -226,6 +238,14 @@ ui <- fluidPage(
             class = "card-btn"
           )
         )
+      ),
+      column(
+        width = 9,
+        div(
+          class = "card",
+          h2("Round History", class = "yuyu-short-regular card-header"),
+          
+        )
       )
     ),
     
@@ -258,19 +278,40 @@ server <- function(input, output) {
     }
   })
   
+  make_table <- function(df) {
+    tags$table(
+      class = "rounds-table yuyu-short-regular table-text",
+      tags$thead(
+        tags$tr(
+          lapply(names(df), tags$th)
+        )
+      ),
+      
+      tags$tbody(
+        lapply(seq_len(nrow(df)), function(i) {
+          tags$tr(
+            lapply(df[i, ], function(x) {
+              tags$td(toupper(as.character(x)))
+            })
+          )
+        })
+      )
+    )
+  }
+  
   output$handicap_rounds <- renderUI({
     req(selected_handicap())
     
     rounds <- if (selected_handicap() == "Combo") {
-      combo_rounds_used 
+      combo_rounds 
     } else {
-      par3_rounds_used
+      par3_rounds
     }
     
     rounds <- rounds %>% 
       select(
         EVENT = Tournament,
-        DATE = `Registration Data`,
+        DATE = Date,
         ROUND = Round,
         SCORE = `To Par (Gross)`,
         `HCP DIFF` = Differential
@@ -283,25 +324,7 @@ server <- function(input, output) {
         paste(toupper(selected_handicap()), " HANDICAP"),
         class = "yuyu-short-regular card-subheader"
       ),
-      
-      tags$table(
-        class = "rounds-table yuyu-short-regular table-text",
-        tags$thead(
-          tags$tr(
-            lapply(names(rounds), tags$th)
-          )
-        ),
-        
-        tags$tbody(
-          lapply(seq_len(nrow(rounds)), function(i) {
-            tags$tr(
-              lapply(rounds[i, ], function(x) {
-                tags$td(toupper(as.character(x)))
-              })
-            )
-          })
-        )
-      )
+      make_table(rounds)
     )
   })
 }
