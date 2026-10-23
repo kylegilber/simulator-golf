@@ -5,7 +5,10 @@ library(stringr)
 
 round_data <- fread(file = "tournament_scorecard_data.csv")
 shot_data <- fread(file = "shot_data.csv") %>% 
-  mutate(`Starting Lie` = factor(tolower(`Starting Lie`)))
+  mutate(
+    `Starting Lie` = factor(tolower(`Starting Lie`)),
+    Date = format(as.POSIXct(Timestamp), "%m/%d/%Y")
+  )
 
 lies <- c(
   "Concrete",
@@ -21,21 +24,12 @@ lies <- c(
 
 levels(shot_data$`Starting Lie`) <- lies
 
-colors <- list(
-  primary = "#000000",
-  secondary = "#1B1A1A",
-  tertiary = "#484745",
-  highlight = "#282928",
-  accent = "#246ED0"
-)
-
 round_data <- shot_data %>% 
   filter(Hole == 1, `Finishing Lie` == "holeCup") %>% 
   group_by(Tournament) %>% 
   arrange(Timestamp) %>% 
   mutate(
-    Round = row_number(),
-    Date = format(as.POSIXct(Timestamp), "%m/%d/%Y")
+    Round = row_number()
   ) %>% 
   ungroup() %>% 
   select(Date, Tournament, Round) %>% 
@@ -63,6 +57,7 @@ combo_rounds <- combo_rounds %>%
 
 combo_handicap <- round(mean(combo_rounds$Differential), 1)
 
+### MERGE WITH ROUND DATA
 holeouts <- shot_data %>% 
   filter(
     `Starting Lie` != "Green",
@@ -94,6 +89,14 @@ make_grid <- function(n) {
     cells
   )
 }
+
+colors <- list(
+  primary = "#000000",
+  secondary = "#1B1A1A",
+  tertiary = "#484745",
+  highlight = "#282928",
+  accent = "#246ED0"
+)
 
 ui <- fluidPage(
   
@@ -383,7 +386,7 @@ ui <- fluidPage(
               class = "yuyu-short-regular level-text"
             ),
             actionButton(
-              "expand_stats",
+              "expand_holes",
               NULL,
               icon = icon("ellipsis"),
               class = "card-corner-btn"
@@ -406,6 +409,7 @@ ui <- fluidPage(
     fluidRow(
       column(
         width = 12,
+        uiOutput("holeout_holes"),
         uiOutput("handicap_rounds")
       )
     )
@@ -418,6 +422,12 @@ server <- function(input, output) {
   
   observeEvent(input$expand_history, {
     expand_history(!expand_history())
+  })
+  
+  expand_holes <- reactiveVal(FALSE)
+  
+  observeEvent(input$expand_holes, {
+    expand_holes(!expand_holes())
   })
   
   selected_handicap <- reactiveVal(NULL)
@@ -438,7 +448,7 @@ server <- function(input, output) {
     }
   })
   
-  make_table <- function(df) {
+  format_table <- function(df) {
     df <- df %>% 
       mutate(
         across(
@@ -450,6 +460,12 @@ server <- function(input, output) {
           ~ replace(.x, is.na(.x), "")
         )
       )
+  }
+  
+  make_table <- function(df, format = TRUE) {
+    if (format) {
+      df <- format_table(df)
+    }
     
     tags$table(
       class = "rounds-table yuyu-short-regular table-text",
@@ -490,6 +506,33 @@ server <- function(input, output) {
     }
     
     make_table(rounds)
+  })
+  
+  output$holeout_holes <- renderUI({
+    req(expand_holes())
+    
+    holes <- holeouts %>% 
+      select(
+        EVENT = Tournament,
+        DATE = Date,
+        COURSE = Course,
+        HOLE = Hole,
+        `DIST (YD)` = `Starting Distance To Pin (yd)`,
+        `CARRY (YD)` = `Carry (yd)`,
+        `ROLL (YD)` = `Roll (yd)`
+      ) %>% 
+      mutate(
+        across(
+          c(`DIST (YD)`, `CARRY (YD)`, `ROLL (YD)`),
+          ~ round(.x, 1)
+        )
+      )
+    
+    div(
+      class = "card expanded-card",
+      h2("Holeouts", class = "yuyu-short-regular card-header"),
+      make_table(holes, format = FALSE)
+    )
   })
   
   output$handicap_rounds <- renderUI({
